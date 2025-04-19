@@ -82,23 +82,24 @@ const Token: TokenItem = ({ address }) => {
 
   console.log(loading)
 
-  // if (loading) {
-  //   return (
-  //     <div
-  //       className={`fixed left-0 top-0 flex items-center justify-center w-full h-screen z-[99] bg-[#11081d] `}
-  //     >
-  //       /* From Uiverse.io by TamaniPhiri */
-  //       <div className="flex-col gap-4 w-full flex items-center justify-center">
-  //         <div className="w-28 h-28 border-8 text-blue-400 text-4xl animate-spin border-gray-300 flex items-center justify-center border-t-blue-400 rounded-full">
-  //           <img src="ethereum.svg" />
-  //         </div>
-  //       </div>
-  //     </div>
-  //   )
-  // }
+  if (error) {
+    return (
+      <div className=" text-black bg-[#d7d7d7] h-screen flex flex-col items-center justify-center">
+        <div className="wrapper flex flex-col items-center justify-center gap-4">
+          <h3 className="text-2xl">Ops, something went wrong</h3>
+          <Link
+            href="/"
+            className="flex items-center bg-[#11081d] text-white w-fit p-2s px-5"
+          >
+            <p>Back</p>
+          </Link>
+        </div>
+      </div>
+    )
+  }
 
-  return (
-    <div className="flex flex-col overflow-hidden bg-[#11081d]">
+  if (loading) {
+    return (
       <div
         className={`fixed left-0 top-0 flex items-center justify-center w-full h-screen z-[99] bg-[#11081d] `}
       >
@@ -108,7 +109,11 @@ const Token: TokenItem = ({ address }) => {
           </div>
         </div>
       </div>
+    )
+  }
 
+  return (
+    <div className="flex flex-col overflow-hidden bg-[#11081d]">
       <div className=" text-black bg-[#d7d7d7] flex flex-col ">
         <div className="wrapper">
           <Link href="/" className="flex items-center">
@@ -250,8 +255,9 @@ const Token: TokenItem = ({ address }) => {
         ) : (
           <></>
         )}
+
         {tokenData?.topTraders && tokenData?.topTraders?.length > 0 && (
-          <div className="container">
+          <div className="">
             {/* <Bubbles links={links} traders={traders} /> */}
             <Bubbles
               topTraders={topTraders}
