@@ -113,8 +113,8 @@ const Token: TokenItem = ({ address }) => {
     <div className="flex flex-col overflow-hidden bg-[#11081d]">
       <div className=" text-black bg-[#d7d7d7] flex flex-col ">
         <div className="wrapper">
-          <Link href="/" className="flex items-center">
-            <MdArrowBackIos />
+          <Link href="/" className="flex items-center gap-1 w-fit group">
+            <MdArrowBackIos className="transition-all transform translate-x-1.5 group-hover:translate-0" />
             <p>Back</p>
           </Link>
         </div>

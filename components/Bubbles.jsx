@@ -37,10 +37,10 @@ const BubbleChart = ({ topTraders, links, handleSelectTrader }) => {
     // Create nodes for each top trader
     const nodes = topTraders.map((trader, i) => {
       // Get wallet address
-      const wallet = trader.address || trader.wallet
+      const wallet = trader.address
 
       // Calculate bubble size based on volume or profit
-      const amount = trader.volume || Number(trader.realized_profit_usd) || 1
+      const amount = trader.realized_profit_usd || 1
 
       // Start nodes close to the center with small random offsets
       const centerOffsetX = (Math.random() - 0.5) * 100 // Small random offset from center
@@ -307,11 +307,12 @@ const BubbleChart = ({ topTraders, links, handleSelectTrader }) => {
     <div style={{ position: "relative" }}>
       <svg
         ref={svgRef}
-        width="100%"
+        width={width}
         height={height}
         style={{
           background: "#11081d",
           cursor: draggingId ? "grabbing" : isPanning ? "grabbing" : "move",
+          margin: "0 auto",
         }}
         onMouseDown={handleSvgMouseDown}
         onMouseMove={handleMouseMove}
