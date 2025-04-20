@@ -3,6 +3,8 @@ import { CiSearch } from "react-icons/ci"
 import axios from "axios"
 import Link from "next/link"
 
+const NEXT_PUBLIC_API_URL = process.env.NEXT_PUBLIC_API_URL
+
 export default function Home() {
   const [query, setQuery] = useState("")
   const [result, setResult] = useState({
@@ -19,7 +21,7 @@ export default function Home() {
     const fetchResults = async () => {
       try {
         await axios
-          .get(`http://localhost:5006/ethereum/search/${query}`)
+          .get(`${NEXT_PUBLIC_API_URL}/ethereum/search/${query}`)
           .then(({ data }) => {
             setResult(data)
           })

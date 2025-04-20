@@ -1,14 +1,12 @@
-import axios from "axios"
-import { GetServerSideProps } from "next"
-import Bubbles from "@/components/Bubbles"
-import { BiCopy } from "react-icons/bi"
 import { useEffect, useState } from "react"
-import { FaCopy } from "react-icons/fa"
+import { GetServerSideProps } from "next"
+import Link from "next/link"
+import axios from "axios"
+import Bubbles from "@/components/Bubbles"
 import { toast } from "react-toastify"
 import { MdArrowBackIos, MdContentCopy } from "react-icons/md"
-import Lottie from "lottie-react"
-import loader from "../../public/loader.json"
-import Link from "next/link"
+
+const NEXT_PUBLIC_API_URL = process.env.NEXT_PUBLIC_API_URL
 
 type TokenItem = ({ address }: { address: string }) => void
 
@@ -37,7 +35,7 @@ const Token: TokenItem = ({ address }) => {
     }
 
     axios
-      .get(`http://localhost:5006/ethereum/tokens/${address}`)
+      .get(`${NEXT_PUBLIC_API_URL}/ethereum/tokens/${address}`)
       .then(({ data }) => {
         setTokenData(data)
         setLoading(false)
@@ -49,8 +47,7 @@ const Token: TokenItem = ({ address }) => {
       })
   }, [address])
 
-  console.log(tokenData, "tokenData")
-  console.log(selectedTrader, "selectedTrader")
+  console.log(loading, "loading")
 
   const tokenInfo = tokenData?.tokenInfo
   const topTraders = tokenData?.topTraders
