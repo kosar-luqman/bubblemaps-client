@@ -40,9 +40,9 @@ export default function Home() {
 
   return (
     <div className="flex flex-col items-center min-h-screen py-10 bg-[#1e1e1e] text-[#fff]">
-      <div className="text-center">
-        <h1 className="text-3xl font-bold">Bubblemaps</h1>
-        <p className="text-lg">find your token top traders</p>
+      <div className="text-center space-y-2">
+        <h1 className="text-4xl font-bold">Bubblemaps</h1>
+        <p className="text-lg">Explore top Ethereum token traders</p>
       </div>
 
       <div className="relative pt-14 flex flex-col items-center justify-center gap-10 shadow-sm  max-w-[500px] w-full rounded-lg">
@@ -62,7 +62,7 @@ export default function Home() {
       {result?.symbol && result?.name ? (
         <Link
           href={`/tokens/${result?.address}`}
-          className="flex justify-between items-center gap-2 max-w-[500px] py-4 px-3 w-full bg-[#e1e1e1] rounded-lg mt-2"
+          className="flex justify-between items-center gap-2 max-w-[500px] py-4 px-3 w-full bg-[#f2f2f2] rounded-lg mt-2"
         >
           <div className="flex flex-col gap-2">
             <div className="flex items-center gap-1">
@@ -73,8 +73,6 @@ export default function Home() {
 
             <p className="text-[#000]">{result?.address}</p>
           </div>
-
-          <p className="text-black">ETH</p>
         </Link>
       ) : (
         ""

@@ -95,14 +95,17 @@ const Token: TokenItem = ({ address }) => {
     )
   }
 
-  if (loading) {
+  if (!loading) {
     return (
       <div
         className={`fixed left-0 top-0 flex items-center justify-center w-full h-screen z-[99] bg-[#11081d] `}
       >
         <div className="flex-col gap-4 w-full flex items-center justify-center">
-          <div className="w-28 h-28 border-8 text-blue-400 text-4xl animate-spin duration-1000 border-gray-300 flex items-center justify-center border-t-blue-400 rounded-full">
-            <img src="/ethereum.svg" />
+          <div className="w-28 h-28 border-8 text-blue-400 overflow-hidden text-4xl animate-spin duration-1000 border-gray-300 flex items-center justify-center border-t-blue-400 rounded-full">
+            <img
+              src="/ethereum.wine.svg"
+              className="object-cover w-full h-full"
+            />
           </div>
         </div>
       </div>
