@@ -11,7 +11,12 @@ import {
 const width = 1000
 const height = 700
 
-const BubbleChart = ({ topTraders, links, handleSelectTrader }) => {
+const BubbleChart = ({
+  topTraders,
+  links,
+  selectedTrader,
+  handleSelectTrader,
+}) => {
   const svgRef = useRef(null)
   const contentRef = useRef(null)
   const animationRef = useRef(null)
@@ -346,35 +351,39 @@ const BubbleChart = ({ topTraders, links, handleSelectTrader }) => {
             )
           })}
 
-          {bubbles.map((b) => (
-            <g
-              onClick={() => handleSelectTrader(b.wallet)}
-              key={b.id}
-              transform={`translate(${b.x},${b.y})`}
-            >
-              <circle
-                r={b.r}
-                fill="#6536a340"
-                stroke="#6536a3"
-                strokeWidth="3"
-                onMouseDown={(e) => handleMouseDown(e, b.id)}
-                style={{ cursor: "grab" }}
+          {bubbles.map((b) => {
+            const isActive = selectedTrader?.wallet === b?.wallet
+
+            return (
+              <g
+                onClick={() => handleSelectTrader(b.wallet)}
+                key={b.id}
+                transform={`translate(${b.x},${b.y})`}
               >
-                <title>
-                  {b.wallet} - {b.amount}
-                </title>
-              </circle>
-              <text
-                textAnchor="middle"
-                dy="0.3em"
-                fill="#fff"
-                fontSize={b.r > 20 ? b.r / 3 : 0}
-                pointerEvents="none"
-              >
-                {b.wallet.substring(0, 6)}
-              </text>
-            </g>
-          ))}
+                <circle
+                  r={b.r}
+                  fill="#6536a340"
+                  stroke={isActive ? "#fff" : "#6536a3"}
+                  strokeWidth={`${isActive ? "5" : "3"}`}
+                  onMouseDown={(e) => handleMouseDown(e, b.id)}
+                  style={{ cursor: "grab" }}
+                >
+                  <title>
+                    {b.wallet} - {b.amount}
+                  </title>
+                </circle>
+                <text
+                  textAnchor="middle"
+                  dy="0.3em"
+                  fill="#fff"
+                  fontSize={b.r > 20 ? b.r / 3 : 0}
+                  pointerEvents="none"
+                >
+                  {b.wallet.substring(0, 6)}
+                </text>
+              </g>
+            )
+          })}
         </g>
       </svg>
     </div>

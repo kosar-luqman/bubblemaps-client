@@ -58,3 +58,13 @@ interface TokenData {
     to: string
   }
 }
+
+type SelectedTrader = {
+  wallet: string
+  rank: number
+  realized_profit_usd: number
+  avg_buy_price_usd: number
+  avg_sell_price_usd: number
+  realized_profit_percentage: number
+  count_of_trades: number
+}

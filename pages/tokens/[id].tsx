@@ -12,7 +12,7 @@ type TokenItem = ({ address }: { address: string }) => void
 
 const Token: TokenItem = ({ address }) => {
   const [tokenData, setTokenData] = useState<TokenData>()
-  const [selectedTrader, setSelectedTrader] = useState({
+  const [selectedTrader, setSelectedTrader] = useState<SelectedTrader>({
     wallet: "",
     rank: -1,
     realized_profit_usd: -1,
@@ -24,8 +24,6 @@ const Token: TokenItem = ({ address }) => {
 
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
-
-  console.log(address, "address")
 
   useEffect(() => {
     if (!address) {
@@ -46,8 +44,6 @@ const Token: TokenItem = ({ address }) => {
         setError(true)
       })
   }, [address])
-
-  console.log(loading, "loading")
 
   const tokenInfo = tokenData?.tokenInfo
   const topTraders = tokenData?.topTraders
@@ -76,8 +72,6 @@ const Token: TokenItem = ({ address }) => {
     navigator.clipboard.writeText(selectedTrader.wallet)
     toast.success("Copied to clipboard")
   }
-
-  console.log(loading)
 
   if (error) {
     return (
@@ -185,9 +179,9 @@ const Token: TokenItem = ({ address }) => {
         )}
       </div>
 
-      <div className="relative my-2">
+      <div className="relative mb-2">
         {selectedTrader?.wallet ? (
-          <div className="absolute left-[20px] top-[10px] min-w-[20rem] p-3  bg-[#2c2831] text-[#fff] z-[9999] rounded-[1rem]">
+          <div className="absolute left-[20px] top-[10px] p-3  bg-[#2c2831] text-[#fff] z-[9999] rounded-[1rem]">
             <h3 className="text-xl">Selected Wallet #{selectedTrader?.rank}</h3>
 
             <div className="mt-3 flex items-center gap-3">
@@ -256,12 +250,51 @@ const Token: TokenItem = ({ address }) => {
           <></>
         )}
 
+        {/* List of traders */}
+        <div className="absolute right-[1rem] top-[10px] rounded-sm bg-[#2c2831] text-white z-[9999] max-h-[36rem] overflow-scroll">
+          <h3 className="p-3 font-bold text-lg">Top Traders</h3>
+
+          <div className="w-full h-[1px] bg-white"></div>
+
+          <ul className="space-y-1 py-2">
+            {topTraders?.map((trader, index) => {
+              const isActive = selectedTrader?.wallet === trader?.address
+              return (
+                <li
+                  className={`p-3 min-w-[18rem] transition-all hover:bg-[#3c3c3c] ${
+                    isActive ? "bg-[#6536a3]" : ""
+                  } cursor-pointer`}
+                  onClick={() => handleSelectTrader(trader?.address)}
+                >
+                  <div className=" space-x-4">
+                    <span
+                      className={`${
+                        isActive ? "text-[#fff]" : "text-[#8e8c90]"
+                      } text-sm font-medium`}
+                    >
+                      #{index + 1}
+                    </span>
+
+                    <span className="text-[#fff] text-sm">
+                      {trader.address?.substring(0, 6)}
+                      ...
+                      {trader.address?.substring(trader.address?.length - 4)}
+                    </span>
+                  </div>
+
+                  <div></div>
+                </li>
+              )
+            })}
+          </ul>
+        </div>
+
         {tokenData?.topTraders && tokenData?.topTraders?.length > 0 && (
           <div className="">
-            {/* <Bubbles links={links} traders={traders} /> */}
             <Bubbles
               topTraders={topTraders}
               links={links}
+              selectedTrader={selectedTrader}
               handleSelectTrader={handleSelectTrader}
             />
           </div>
