@@ -95,7 +95,7 @@ const Token: TokenItem = ({ address }) => {
     )
   }
 
-  if (!loading) {
+  if (loading) {
     return (
       <div
         className={`fixed left-0 top-0 flex items-center justify-center w-full h-screen z-[99] bg-[#11081d] `}
