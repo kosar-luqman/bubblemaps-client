@@ -39,13 +39,22 @@ export default function Home() {
   }
 
   return (
-    <div className="flex flex-col items-center min-h-screen py-10 bg-[#1e1e1e] text-[#fff]">
+    <div
+      style={{
+        backgroundImage: `url(https://www.logo.wine/a/logo/Ethereum/Ethereum-Icon-Purple-Dark-Dark-Background-Logo.wine.svg)`,
+        backgroundSize: "40rem",
+        backgroundPosition: "center",
+        backgroundRepeat: "no-repeat",
+        backgroundColor: "#141b2f",
+      }}
+      className="flex flex-col items-center min-h-screen py-10 text-[#fff]"
+    >
       <div className="text-center space-y-2">
         <h1 className="text-4xl font-bold">Bubblemaps</h1>
         <p className="text-lg">Explore top Ethereum token traders</p>
       </div>
 
-      <div className="relative pt-14 flex flex-col items-center justify-center gap-10 shadow-sm  max-w-[500px] w-full rounded-lg">
+      <div className="relative px-2 pt-14 flex flex-col items-center justify-center gap-10 shadow-sm  max-w-[500px] w-full rounded-lg">
         <div className="flex items-center gap-[5px] border-[1px] border-[#cfcfcf] bg-[#fff] pr-4 rounded-[1rem] overflow-hidden w-full">
           <input
             className="border-none outline-none w-full p-4 text-md text-black"
