@@ -54,10 +54,10 @@ export default function Home() {
         <p className="text-lg">Explore top Ethereum token traders</p>
       </div>
 
-      <div className="relative px-2 pt-14 flex flex-col items-center justify-center gap-10 shadow-sm  max-w-[500px] w-full rounded-lg">
-        <div className="flex items-center gap-[5px] border-[1px] border-[#cfcfcf] bg-[#fff] pr-4 rounded-[1rem] overflow-hidden w-full">
+      <div className="relative px-2 pt-14 flex flex-col items-center justify-center gap-10 shadow-sm  max-w-[400px] w-full rounded-lg">
+        <div className="flex items-center gap-[5px] border-[1px] border-[#cfcfcf] bg-[#fff] pr-3 rounded-[10px] overflow-hidden w-full">
           <input
-            className="border-none outline-none w-full p-4 text-md text-black"
+            className="border-none outline-none w-full p-3 text-md text-black"
             type="text"
             placeholder="Enter token address"
             value={query}
