@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react"
+import React, { useState, useEffect, useRef, useMemo, useCallback } from "react"
 import {
   forceSimulation,
   forceCollide,
@@ -7,9 +7,6 @@ import {
   forceLink,
   forceManyBody,
 } from "d3-force"
-
-const width = 1000
-const height = 700
 
 const BubbleChart = ({
   topTraders,
@@ -28,10 +25,14 @@ const BubbleChart = ({
   const [isPanning, setIsPanning] = useState(false)
   const [panStart, setPanStart] = useState({ x: 0, y: 0 })
   const [bounds, setBounds] = useState({ minX: 0, maxX: 0, minY: 0, maxY: 0 })
+  const [isLoading, setIsLoading] = useState(true)
 
-  // Step 1: Initialize bubbles with strong centering
-  useEffect(() => {
-    if (!topTraders || topTraders.length === 0) return
+  const width = 1000
+  const height = 700
+
+  // Memoize bubble initialization to avoid recalculating on every render
+  const initializeBubbles = useCallback(() => {
+    if (!topTraders || topTraders.length === 0) return []
 
     const totalVolume = topTraders.reduce(
       (sum, trader) =>
@@ -41,19 +42,14 @@ const BubbleChart = ({
 
     // Create nodes for each top trader
     const nodes = topTraders.map((trader, i) => {
-      // Get wallet address
       const wallet = trader.address
-
-      // Calculate bubble size based on volume or profit
       const amount = trader.realized_profit_usd || 1
-
-      // Start nodes close to the center with small random offsets
-      const centerOffsetX = (Math.random() - 0.5) * 100 // Small random offset from center
+      const centerOffsetX = (Math.random() - 0.5) * 100
       const centerOffsetY = (Math.random() - 0.5) * 100
 
       return {
         id: i,
-        r: 12 + (amount / totalVolume) * 150, // Percentage-based sizing
+        r: 12 + (amount / totalVolume) * 150,
         wallet: wallet,
         amount: amount,
         volumePercentage: ((amount / totalVolume) * 100).toFixed(2) + "%",
@@ -61,6 +57,7 @@ const BubbleChart = ({
         y: height / 2 + centerOffsetY,
         targetX: width / 2 + centerOffsetX,
         targetY: height / 2 + centerOffsetY,
+        scale: 0, // Start with scale 0 for animation
       }
     })
 
@@ -70,15 +67,15 @@ const BubbleChart = ({
       target: link.target,
     }))
 
-    // Configure and run D3 force simulation with strong centering
+    // Run simulation with fewer iterations for faster initialization
     const sim = forceSimulation(nodes)
-      .force("x", forceX(width / 2).strength(0.1)) // Strong center force
-      .force("y", forceY(height / 2).strength(0.1)) // Strong center force
+      .force("x", forceX(width / 2).strength(0.1))
+      .force("y", forceY(height / 2).strength(0.1))
       .force(
         "collide",
-        forceCollide((d) => d.r + 15) // Tighter collision detection
+        forceCollide((d) => d.r + 15)
           .strength(0.8)
-          .iterations(10)
+          .iterations(5) // Reduced iterations for faster calculation
       )
       .force("charge", forceManyBody().strength(-30))
       .force(
@@ -86,19 +83,18 @@ const BubbleChart = ({
         forceLink(linkData)
           .id((d) => d.id)
           .distance((d) => {
-            // Calculate distance based on node radii
             const sourceNode = nodes.find((n) => n.id === d.source)
             const targetNode = nodes.find((n) => n.id === d.target)
             return sourceNode && targetNode
               ? (sourceNode.r + targetNode.r) * 1.5
-              : 150 // Tighter linkage
+              : 150
           })
-          .strength(0.5) // Stronger link force
+          .strength(0.5)
       )
       .stop()
 
-    // Run simulation iterations for better initial layout
-    for (let i = 0; i < 2000; ++i) sim.tick()
+    // Run fewer ticks for initial layout (300 is much faster than 2000)
+    for (let i = 0; i < 300; ++i) sim.tick()
 
     // Calculate bounds for all nodes
     let minX = Infinity,
@@ -122,65 +118,125 @@ const BubbleChart = ({
 
     setBounds({ minX, maxX, minY, maxY })
 
-    // Prepare final bubble positions
-    const prepared = nodes.map((n) => ({
+    // Prepare final bubble positions with same target and current position
+    // for immediate rendering without delay
+    return nodes.map((n) => ({
       ...n,
       targetX: n.x,
       targetY: n.y,
+      targetScale: 1, // Target scale is 1 (full size)
     }))
-
-    setBubbles(prepared)
-
-    // Calculate optimal zoom and pan to fit all nodes
-    setTimeout(fitView, 100)
   }, [topTraders, links])
 
-  // Function to fit all bubbles in view
-  const fitView = () => {
-    if (!svgRef.current || bubbles.length === 0) return
+  // Initialize bubbles only once when data changes
+  useEffect(() => {
+    const initializedBubbles = initializeBubbles()
+    setBubbles(initializedBubbles)
+    setIsLoading(true)
 
-    const svgRect = svgRef.current.getBoundingClientRect()
-    const svgWidth = svgRect.width
-    const svgHeight = svgRect.height
+    // Fit view after bubbles are initialized
+    if (initializedBubbles.length > 0) {
+      setTimeout(fitView, 100)
+    }
 
-    // Calculate visible area width and height
-    const visibleWidth = bounds.maxX - bounds.minX
-    const visibleHeight = bounds.maxY - bounds.minY
+    return () => {
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current)
+      }
+    }
+  }, [topTraders, links, initializeBubbles])
 
-    // Calculate scale to fit content
-    const scaleX = svgWidth / visibleWidth
-    const scaleY = svgHeight / visibleHeight
-    const scale = Math.min(scaleX, scaleY) * 0.9 // 90% of the calculated scale for padding
+  // Start load animation when bubbles are initialized
+  useEffect(() => {
+    if (bubbles.length === 0) return
 
-    // Calculate center of content
-    const contentCenterX = (bounds.minX + bounds.maxX) / 2
-    const contentCenterY = (bounds.minY + bounds.maxY) / 2
+    const startTime = Date.now()
+    const animationDuration = 1000 // 1 second for the animation
 
-    // Calculate new pan offset to center content
-    const newPanX = svgWidth / 2 - contentCenterX * scale
-    const newPanY = svgHeight / 2 - contentCenterY * scale
+    const animateLoading = () => {
+      const now = Date.now()
+      const elapsed = now - startTime
+      const progress = Math.min(elapsed / animationDuration, 1)
 
-    setZoomLevel(scale)
-    setPanOffset({ x: newPanX, y: newPanY })
+      if (progress < 1) {
+        setBubbles((prev) =>
+          prev.map((b, i) => {
+            // Stagger the animations slightly based on the bubble's index
+            const staggeredProgress = Math.min(progress * (1 + i * 0.1), 1)
+            // Use easeOutElastic for a bouncy effect
+            const eased = easeOutElastic(staggeredProgress)
+            return {
+              ...b,
+              scale: eased,
+            }
+          })
+        )
+        animationRef.current = requestAnimationFrame(animateLoading)
+      } else {
+        // Animation complete
+        setBubbles((prev) => prev.map((b) => ({ ...b, scale: 1 })))
+        setIsLoading(false)
+      }
+    }
+
+    animationRef.current = requestAnimationFrame(animateLoading)
+
+    return () => {
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current)
+      }
+    }
+  }, [bubbles.length])
+
+  // Elastic easing function for bounce effect
+  const easeOutElastic = (x) => {
+    const c4 = (2 * Math.PI) / 3
+    return x === 0
+      ? 0
+      : x === 1
+      ? 1
+      : Math.pow(2, -10 * x) * Math.sin((x * 10 - 0.75) * c4) + 1
   }
 
-  // Step 2: Smooth animation loop
+  // Optimized animation loop with performance improvements
   useEffect(() => {
+    // Only run animation when bubbles are loaded and not in loading state
+    if (bubbles.length === 0 || isLoading) return
+
+    // Use a throttled animation frame for smoother performance
     const animate = () => {
-      setBubbles((prev) =>
-        prev.map((b) => {
+      setBubbles((prev) => {
+        // Check if any bubbles need animation (significant difference between current and target)
+        const needsAnimation = prev.some(
+          (b) =>
+            Math.abs(b.targetX - b.x) > 0.5 || Math.abs(b.targetY - b.y) > 0.5
+        )
+
+        // If no significant movement needed, don't update state
+        if (!needsAnimation) return prev
+
+        return prev.map((b) => {
+          // Calculate distance to target
           const dx = b.targetX - b.x
           const dy = b.targetY - b.y
 
+          // If the distance is very small, snap to target position
+          if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) {
+            return { ...b, x: b.targetX, y: b.targetY }
+          }
+
+          // Otherwise apply easing
           return {
             ...b,
             x: b.x + dx * 0.15,
             y: b.y + dy * 0.15,
           }
         })
-      )
+      })
+
       animationRef.current = requestAnimationFrame(animate)
     }
+
     animationRef.current = requestAnimationFrame(animate)
 
     return () => {
@@ -188,125 +244,231 @@ const BubbleChart = ({
         cancelAnimationFrame(animationRef.current)
       }
     }
-  }, [])
+  }, [bubbles.length, isLoading])
 
-  // Step 3: Drag handling for bubbles
-  const handleMouseDown = (e, id) => {
-    e.stopPropagation() // Prevent panning
+  // Function to fit all bubbles in view
+  const fitView = useCallback(() => {
+    if (!svgRef.current || bubbles.length === 0) return
+
     const svgRect = svgRef.current.getBoundingClientRect()
-    const bubble = bubbles.find((b) => b.id === id)
+    const svgWidth = svgRect.width
+    const svgHeight = svgRect.height
 
-    // Calculate position considering zoom and pan
-    const mouseX = (e.clientX - svgRect.left - panOffset.x) / zoomLevel
-    const mouseY = (e.clientY - svgRect.top - panOffset.y) / zoomLevel
+    const visibleWidth = bounds.maxX - bounds.minX
+    const visibleHeight = bounds.maxY - bounds.minY
 
-    setDraggingId(id)
-    setOffset({
-      x: mouseX - bubble.x,
-      y: mouseY - bubble.y,
-    })
-  }
+    const scaleX = svgWidth / visibleWidth
+    const scaleY = svgHeight / visibleHeight
+    const scale = Math.min(scaleX, scaleY) * 0.9
 
-  const handleMouseMove = (e) => {
-    const svgRect = svgRef.current.getBoundingClientRect()
+    const contentCenterX = (bounds.minX + bounds.maxX) / 2
+    const contentCenterY = (bounds.minY + bounds.maxY) / 2
 
-    if (draggingId !== null) {
-      e.stopPropagation() // Prevent panning
+    const newPanX = svgWidth / 2 - contentCenterX * scale
+    const newPanY = svgHeight / 2 - contentCenterY * scale
 
-      // Calculate position considering zoom and pan
+    setZoomLevel(scale)
+    setPanOffset({ x: newPanX, y: newPanY })
+  }, [bubbles, bounds])
+
+  // Optimized event handlers using useCallback
+  const handleMouseDown = useCallback(
+    (e, id) => {
+      e.stopPropagation()
+      const svgRect = svgRef.current.getBoundingClientRect()
+      const bubble = bubbles.find((b) => b.id === id)
+
       const mouseX = (e.clientX - svgRect.left - panOffset.x) / zoomLevel
       const mouseY = (e.clientY - svgRect.top - panOffset.y) / zoomLevel
 
-      setBubbles((prev) =>
-        prev.map((b) => {
-          if (b.id === draggingId) {
-            // Calculate new position
-            let newX = mouseX - offset.x
-            let newY = mouseY - offset.y
+      setDraggingId(id)
+      setOffset({
+        x: mouseX - bubble.x,
+        y: mouseY - bubble.y,
+      })
+    },
+    [bubbles, panOffset, zoomLevel]
+  )
 
-            // Apply boundaries - keep within canvas with some margin
-            const margin = b.r + 10
-            newX = Math.max(margin, Math.min(width - margin, newX))
-            newY = Math.max(margin, Math.min(height - margin, newY))
+  const handleMouseMove = useCallback(
+    (e) => {
+      if (!svgRef.current) return
 
-            return {
-              ...b,
-              targetX: newX,
-              targetY: newY,
+      const svgRect = svgRef.current.getBoundingClientRect()
+
+      if (draggingId !== null) {
+        e.stopPropagation()
+
+        const mouseX = (e.clientX - svgRect.left - panOffset.x) / zoomLevel
+        const mouseY = (e.clientY - svgRect.top - panOffset.y) / zoomLevel
+
+        setBubbles((prev) =>
+          prev.map((b) => {
+            if (b.id === draggingId) {
+              let newX = mouseX - offset.x
+              let newY = mouseY - offset.y
+
+              const margin = b.r + 10
+              newX = Math.max(margin, Math.min(width - margin, newX))
+              newY = Math.max(margin, Math.min(height - margin, newY))
+
+              // Update target position but not actual position for smooth animation
+              return {
+                ...b,
+                targetX: newX,
+                targetY: newY,
+              }
             }
-          }
-          return b
+            return b
+          })
+        )
+      } else if (isPanning) {
+        const dx = e.clientX - panStart.x
+        const dy = e.clientY - panStart.y
+
+        setPanOffset({
+          x: panOffset.x + dx,
+          y: panOffset.y + dy,
         })
-      )
-    } else if (isPanning) {
-      // Handle panning
-      const dx = e.clientX - panStart.x
-      const dy = e.clientY - panStart.y
 
-      setPanOffset({
-        x: panOffset.x + dx,
-        y: panOffset.y + dy,
-      })
+        setPanStart({
+          x: e.clientX,
+          y: e.clientY,
+        })
+      }
+    },
+    [
+      draggingId,
+      isPanning,
+      offset,
+      panOffset,
+      panStart,
+      zoomLevel,
+      width,
+      height,
+    ]
+  )
 
-      setPanStart({
-        x: e.clientX,
-        y: e.clientY,
-      })
-    }
-  }
-
-  const handleMouseUp = () => {
+  const handleMouseUp = useCallback(() => {
     setDraggingId(null)
     setIsPanning(false)
-  }
+  }, [])
 
-  // Step 4: Pan handling for background
-  const handleSvgMouseDown = (e) => {
-    if (draggingId === null) {
-      setIsPanning(true)
-      setPanStart({
-        x: e.clientX,
-        y: e.clientY,
+  const handleSvgMouseDown = useCallback(
+    (e) => {
+      if (draggingId === null) {
+        setIsPanning(true)
+        setPanStart({
+          x: e.clientX,
+          y: e.clientY,
+        })
+      }
+    },
+    [draggingId]
+  )
+
+  const handleWheel = useCallback(
+    (e) => {
+      e.preventDefault()
+
+      if (!svgRef.current) return
+
+      const svgRect = svgRef.current.getBoundingClientRect()
+      const mouseX = e.clientX - svgRect.left
+      const mouseY = e.clientY - svgRect.top
+
+      const mouseInContentX = (mouseX - panOffset.x) / zoomLevel
+      const mouseInContentY = (mouseY - panOffset.y) / zoomLevel
+
+      const delta = e.deltaY > 0 ? 0.9 : 1.1
+      const newZoomLevel = Math.max(0.1, Math.min(5, zoomLevel * delta))
+
+      const newPanOffsetX = mouseX - mouseInContentX * newZoomLevel
+      const newPanOffsetY = mouseY - mouseInContentY * newZoomLevel
+
+      setZoomLevel(newZoomLevel)
+      setPanOffset({
+        x: newPanOffsetX,
+        y: newPanOffsetY,
       })
-    }
-  }
+    },
+    [panOffset, zoomLevel]
+  )
 
-  // Step 5: Mouse wheel zoom with improved handling
-  const handleWheel = (e) => {
-    e.preventDefault()
+  // Memoize link components to prevent unnecessary re-renders
+  const linkElements = useMemo(() => {
+    return links
+      .map((link, i) => {
+        const source = bubbles.find((b) => b.id === link.source)
+        const target = bubbles.find((b) => b.id === link.target)
+        if (!source || !target) return null
 
-    // Get mouse position relative to SVG
-    const svgRect = svgRef.current.getBoundingClientRect()
-    const mouseX = e.clientX - svgRect.left
-    const mouseY = e.clientY - svgRect.top
+        const dist = Math.sqrt(
+          Math.pow(source.x - target.x, 2) + Math.pow(source.y - target.y, 2)
+        )
+        const maxDist = 3000
+        const opacity = Math.max(0, 1 - dist / maxDist)
 
-    // Calculate mouse position in the zoomed/panned space
-    const mouseInContentX = (mouseX - panOffset.x) / zoomLevel
-    const mouseInContentY = (mouseY - panOffset.y) / zoomLevel
+        // Only show links when bubbles are fully loaded
+        const linkOpacity = isLoading ? 0 : opacity
 
-    // Calculate new zoom level with more precise control
-    const delta = e.deltaY > 0 ? 0.9 : 1.1
-    const newZoomLevel = Math.max(0.1, Math.min(5, zoomLevel * delta))
+        return (
+          <line
+            key={i}
+            x1={source.x}
+            y1={source.y}
+            x2={target.x}
+            y2={target.y}
+            stroke="#aaa"
+            strokeWidth="1.5"
+            strokeDasharray="4"
+            strokeOpacity={linkOpacity}
+          />
+        )
+      })
+      .filter(Boolean)
+  }, [bubbles, links, isLoading])
 
-    // Adjust pan offset to zoom centered on mouse position
-    const newPanOffsetX = mouseX - mouseInContentX * newZoomLevel
-    const newPanOffsetY = mouseY - mouseInContentY * newZoomLevel
+  // Memoize bubble components to prevent unnecessary re-renders
+  const bubbleElements = useMemo(() => {
+    return bubbles.map((b) => {
+      const isActive = selectedTrader?.wallet === b?.wallet
+      const currentScale = b.scale || 0
 
-    setZoomLevel(newZoomLevel)
-    setPanOffset({
-      x: newPanOffsetX,
-      y: newPanOffsetY,
+      return (
+        <g
+          onClick={() => handleSelectTrader(b.wallet)}
+          key={b.id}
+          transform={`translate(${b.x},${b.y})`}
+        >
+          <circle
+            r={b.r * currentScale}
+            fill="#6536a340"
+            stroke={isActive ? "#fff" : "#6536a3"}
+            strokeWidth={isActive ? "5" : "3"}
+            onMouseDown={(e) => handleMouseDown(e, b.id)}
+            style={{ cursor: "grab" }}
+          >
+            <title>
+              {b.wallet} - {b.amount}
+            </title>
+          </circle>
+          {b.r > 20 && currentScale > 0.5 && (
+            <text
+              textAnchor="middle"
+              dy="0.3em"
+              fill="#fff"
+              fontSize={(b.r / 3) * currentScale}
+              opacity={currentScale}
+              pointerEvents="none"
+            >
+              {b.wallet.substring(0, 6)}
+            </text>
+          )}
+        </g>
+      )
     })
-  }
-
-  // Calculate line opacity based on node distance
-  const calculateLinkOpacity = (source, target) => {
-    const dist = Math.sqrt(
-      Math.pow(source.x - target.x, 2) + Math.pow(source.y - target.y, 2)
-    )
-    const maxDist = 3000 // Maximum distance for visible links
-    return Math.max(0, 1 - dist / maxDist)
-  }
+  }, [bubbles, selectedTrader, handleSelectTrader, handleMouseDown])
 
   return (
     <div style={{ position: "relative" }}>
@@ -329,65 +491,12 @@ const BubbleChart = ({
           ref={contentRef}
           transform={`translate(${panOffset.x}, ${panOffset.y}) scale(${zoomLevel})`}
         >
-          {links.map((link, i) => {
-            const source = bubbles.find((b) => b.id === link.source)
-            const target = bubbles.find((b) => b.id === link.target)
-            if (!source || !target) return null
-
-            const opacity = calculateLinkOpacity(source, target)
-
-            return (
-              <line
-                key={i}
-                x1={source.x}
-                y1={source.y}
-                x2={target.x}
-                y2={target.y}
-                stroke="#aaa"
-                strokeWidth="1.5"
-                strokeDasharray="4"
-                strokeOpacity={opacity}
-              />
-            )
-          })}
-
-          {bubbles.map((b) => {
-            const isActive = selectedTrader?.wallet === b?.wallet
-
-            return (
-              <g
-                onClick={() => handleSelectTrader(b.wallet)}
-                key={b.id}
-                transform={`translate(${b.x},${b.y})`}
-              >
-                <circle
-                  r={b.r}
-                  fill="#6536a340"
-                  stroke={isActive ? "#fff" : "#6536a3"}
-                  strokeWidth={`${isActive ? "5" : "3"}`}
-                  onMouseDown={(e) => handleMouseDown(e, b.id)}
-                  style={{ cursor: "grab" }}
-                >
-                  <title>
-                    {b.wallet} - {b.amount}
-                  </title>
-                </circle>
-                <text
-                  textAnchor="middle"
-                  dy="0.3em"
-                  fill="#fff"
-                  fontSize={b.r > 20 ? b.r / 3 : 0}
-                  pointerEvents="none"
-                >
-                  {b.wallet.substring(0, 6)}
-                </text>
-              </g>
-            )
-          })}
+          {linkElements}
+          {bubbleElements}
         </g>
       </svg>
     </div>
   )
 }
 
-export default BubbleChart
+export default React.memo(BubbleChart)

@@ -5,12 +5,14 @@ import axios from "axios"
 import Bubbles from "@/components/Bubbles"
 import { toast } from "react-toastify"
 import { MdArrowBackIos, MdContentCopy } from "react-icons/md"
+import { FaAngleDoubleRight } from "react-icons/fa"
 
 const NEXT_PUBLIC_API_URL = process.env.NEXT_PUBLIC_API_URL
 
 type TokenItem = ({ address }: { address: string }) => void
 
 const Token: TokenItem = ({ address }) => {
+  const [showTraderList, setShowTraderList] = useState<boolean>(true)
   const [tokenData, setTokenData] = useState<TokenData>()
   const [selectedTrader, setSelectedTrader] = useState<SelectedTrader>({
     wallet: "",
@@ -117,7 +119,7 @@ const Token: TokenItem = ({ address }) => {
         </div>
 
         {supplyData && (
-          <div className="wrapper flex justify-between">
+          <div className="wrapper flex flex-col lg:flex-row gap-6 justify-between">
             <div className="space-y-1">
               <h3 className="text-xl font-[600] mb-3">Token Info</h3>
 
@@ -180,9 +182,10 @@ const Token: TokenItem = ({ address }) => {
       </div>
 
       <div className="relative mb-2">
+        {/* Start Selected Trader */}
         {selectedTrader?.wallet ? (
-          <div className="absolute left-[20px] top-[10px] p-3  bg-[#2c2831] text-[#fff] z-[9999] rounded-[1rem]">
-            <h3 className="text-xl">Selected Wallet #{selectedTrader?.rank}</h3>
+          <div className="absolute left-[20px] top-[10px] p-3 bg-[#2c2831] text-[#fff] z-[9999] rounded-[1rem]">
+            <h3 className="text-xl">Selected Trader #{selectedTrader?.rank}</h3>
 
             <div className="mt-3 flex items-center gap-3">
               <a
@@ -249,18 +252,35 @@ const Token: TokenItem = ({ address }) => {
         ) : (
           <></>
         )}
+        {/* End Selected Trader */}
 
-        {/* List of traders */}
-        <div className="absolute right-[1rem] top-[10px] rounded-sm bg-[#2c2831] text-white z-[9999] max-h-[36rem] overflow-scroll">
+        {/* Start List of traders */}
+        <div
+          className={`absolute right-[10px] top-[10px] transition-all duration-700 transform ${
+            showTraderList ? "translate-x-0" : "translate-x-full"
+          } rounded-sm bg-[#2c2831] text-white z-[9999] overflow-visible`}
+        >
           <h3 className="p-3 font-bold text-lg">Top Traders</h3>
 
           <div className="w-full h-[1px] bg-white"></div>
 
-          <ul className="space-y-1 py-2">
+          <div
+            onClick={() => setShowTraderList((prev) => !prev)}
+            className="transition-all duration-700 relative left-[-2rem] top-[-1rem] cursor-pointer bg-[#fff] w-fit p-2 rounded-full"
+          >
+            <FaAngleDoubleRight
+              className={`text-black transform ${
+                showTraderList ? "rotate-0" : "rotate-180"
+              }`}
+            />
+          </div>
+
+          <ul className="space-y-1 py-2  overflow-scroll max-h-[33rem]">
             {topTraders?.map((trader, index) => {
               const isActive = selectedTrader?.wallet === trader?.address
               return (
                 <li
+                  key={index}
                   className={`p-3 min-w-[18rem] transition-all hover:bg-[#3c3c3c] ${
                     isActive ? "bg-[#6536a3]" : ""
                   } cursor-pointer`}
@@ -288,7 +308,9 @@ const Token: TokenItem = ({ address }) => {
             })}
           </ul>
         </div>
+        {/* End List of traders */}
 
+        {/* Start Bubbles */}
         {tokenData?.topTraders && tokenData?.topTraders?.length > 0 && (
           <div className="">
             <Bubbles
@@ -300,6 +322,7 @@ const Token: TokenItem = ({ address }) => {
           </div>
         )}
       </div>
+      {/* End Bubbles */}
     </div>
   )
 }
